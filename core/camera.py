@@ -16,6 +16,7 @@ class Camera:
         """
         self.picam2 = None
         self.is_running = False
+        self.swap_rb = False
 
     def start(self):
         """Abre el flujo de video de la cámara."""
@@ -29,10 +30,18 @@ class Camera:
             try:
                 self.picam2 = Picamera2()
                 
-                # Configurar explícitamente el formato a RGB888 para evitar el "Efecto Pitufo"
-                vid_config = self.picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
+                # OJO: los nombres de formato de libcamera están "al revés" (little-endian):
+                # "RGB888" entrega los píxeles como [B, G, R] (imagen azulada / "Efecto Pitufo"),
+                # mientras que "BGR888" entrega [R, G, B], que es lo que esperan PIL y el modelo.
+                vid_config = self.picam2.create_video_configuration(main={"size": (640, 480), "format": "BGR888"})
                 self.picam2.configure(vid_config)
-                
+
+                # Verificar el formato que realmente aplicó libcamera (puede ajustarlo).
+                # "RGB888" y "XRGB8888" entregan [B, G, R(, X)] y hay que invertir los canales.
+                actual_format = self.picam2.camera_configuration()["main"]["format"]
+                self.swap_rb = actual_format in ("RGB888", "XRGB8888")
+                logger.info(f"Formato de cámara aplicado: {actual_format} | Invertir R/B: {self.swap_rb}")
+
                 self.picam2.start()
                 self.is_running = True
                 logger.info("Cámara iniciada correctamente con Picamera2.")
@@ -52,11 +61,14 @@ class Camera:
             try:
                 frame = self.picam2.capture_array()
                 
-                # Si el sistema operativo insiste en enviar 4 canales (RGBX)
-                # simplemente recortamos el cuarto canal de relleno sin alterar los colores.
+                # Si llegan 4 canales, recortamos el cuarto canal de relleno (X).
                 if len(frame.shape) == 3 and frame.shape[2] == 4:
                     frame = frame[:, :, :3]
-                
+
+                # Si el formato entrega [B, G, R], lo pasamos a [R, G, B].
+                if self.swap_rb:
+                    frame = frame[:, :, ::-1]
+
                 return np.ascontiguousarray(frame)
             except Exception as e:
                 logger.warning(f"No se pudo leer el fotograma. Detalle: {e}")
