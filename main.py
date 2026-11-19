@@ -1,4 +1,5 @@
 import cv2
+import json
 import time
 import numpy as np
 from datetime import datetime
@@ -193,8 +194,85 @@ class EcoSortApp:
             self.ui.status_label.configure(text="Cámara detenida", text_color="gray")
             self.ui.video_label.configure(image="", text="Cámara Detenida")
 
+    def build_capture_annotation(self, image_filename, capture_dt, metrics):
+        """Construye el diccionario JSON con toda la información del HUD y evaluación de la imagen capturada."""
+        w, h = self.current_pil_image.size if self.current_pil_image is not None else (640, 480)
+        raw_pred = self.last_raw_predicted_class or self.last_predicted_class
+
+        por_clase_json = {}
+        for cls_name in config.CLASSES:
+            m = metrics["per_class"][cls_name]
+            por_clase_json[cls_name] = {
+                "precision": round(m["precision"], 4),
+                "recall": round(m["recall"], 4),
+                "f1-score": round(m["f1"], 4),
+                "support": int(m["support"]),
+            }
+
+        ma = metrics["macro_avg"]
+        wa = metrics["weighted_avg"]
+
+        return {
+            "timestamp": capture_dt.isoformat(),
+            "imagen": {
+                "archivo": image_filename,
+                "ruta_relativa": f"figure/{image_filename}",
+                "resolucion": {
+                    "ancho": w,
+                    "alto": h,
+                    "formato": f"{w}x{h}",
+                },
+            },
+            "hud_rendimiento": {
+                "fps": round(float(self.fps_smoothed), 2),
+                "fps_hud": int(self.fps_smoothed),
+                "latencia_ia_ms": round(float(self.last_latency), 3),
+                "red_neuronal": self.current_model_name,
+            },
+            "modelo": {
+                "nombre": self.current_model_name,
+                "input_shape": list(self.engine.input_shape),
+                "channel_first": bool(getattr(self.engine, "is_channel_first", False)),
+                "umbral_confianza": config.CONFIDENCE_THRESHOLD,
+            },
+            "prediccion_captura": {
+                "clase_real": self.current_true_class,
+                "clase_predicha": raw_pred,
+                "estado_ui": self.last_predicted_class,
+                "acierto": bool(raw_pred == self.current_true_class),
+                "confianza": round(float(self.last_confidence), 4),
+                "confianza_porcentaje": round(float(self.last_confidence) * 100.0, 2),
+                "evaluacion_tiempo_real_activa": self.ui.is_realtime_eval_enabled(),
+            },
+            "metricas_evaluacion": {
+                "clase_real_activa": {
+                    "clase": self.current_true_class,
+                    **por_clase_json[self.current_true_class],
+                },
+                "por_clase": por_clase_json,
+                "accuracy": round(float(metrics["accuracy"]), 4),
+                "macro_avg": {
+                    "precision": round(float(ma["precision"]), 4),
+                    "recall": round(float(ma["recall"]), 4),
+                    "f1-score": round(float(ma["f1"]), 4),
+                    "support": int(ma["support"]),
+                },
+                "weighted_avg": {
+                    "precision": round(float(wa["precision"]), 4),
+                    "recall": round(float(wa["recall"]), 4),
+                    "f1-score": round(float(wa["f1"]), 4),
+                    "support": int(wa["support"]),
+                },
+                "total_support": int(metrics["total_support"]),
+                "matriz_confusion": {
+                    "clases": config.CLASSES,
+                    "matriz": self._get_current_cm().tolist(),
+                },
+            },
+        }
+
     def capture_image(self):
-        """Guarda el fotograma actual (con HUD y tabla de precision/recall/f1/support) en la carpeta figure/."""
+        """Guarda el fotograma actual en figure/ y su anotación completa en figure/annotations/."""
         if not self.camera.is_running or self.current_pil_image is None:
             logger.warning("Intento de captura sin fotograma activo.")
             self.ui.status_label.configure(text="Inicia la cámara para capturar", text_color="orange")
@@ -202,6 +280,7 @@ class EcoSortApp:
 
         try:
             config.FIGURE_DIR.mkdir(exist_ok=True)
+            config.ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
             # Si la evaluación continua estaba desactivada, registramos esta captura puntual en las métricas
             if not self.ui.is_realtime_eval_enabled() and self.last_raw_predicted_class is not None:
@@ -222,16 +301,26 @@ class EcoSortApp:
             else:
                 metrics = self.compute_classification_metrics()
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+            capture_dt = datetime.now()
+            timestamp = capture_dt.strftime("%Y%m%d_%H%M%S_%f")[:-3]
             clean_pred = self.last_predicted_class.replace(".", "").strip() or "sin_clase"
-            filename = f"captura_{timestamp}_{self.current_model_name}_real-{self.current_true_class}_pred-{clean_pred}.png"
-            filepath = config.FIGURE_DIR / filename
+            base_name = f"captura_{timestamp}_{self.current_model_name}_real-{self.current_true_class}_pred-{clean_pred}"
 
-            self.current_pil_image.save(filepath)
+            image_filename = f"{base_name}.png"
+            image_filepath = config.FIGURE_DIR / image_filename
+            self.current_pil_image.save(image_filepath)
+
+            json_filename = f"{base_name}.json"
+            json_filepath = config.ANNOTATIONS_DIR / json_filename
+            annotation_data = self.build_capture_annotation(image_filename, capture_dt, metrics)
+            with open(json_filepath, "w", encoding="utf-8") as f:
+                json.dump(annotation_data, f, indent=2, ensure_ascii=False)
 
             report_str = self.format_classification_report(metrics)
-            logger.info(f"Imagen capturada y guardada en: {filepath}\n{report_str}")
-            self.ui.status_label.configure(text=f"Guardada: {filename[:28]}...", text_color="#00BFFF")
+            logger.info(
+                f"Captura guardada:\n  Imagen: {image_filepath}\n  JSON  : {json_filepath}\n{report_str}"
+            )
+            self.ui.status_label.configure(text=f"IMG+JSON: {base_name[:22]}...", text_color="#00BFFF")
         except Exception as e:
             logger.error(f"Error al guardar la captura: {e}")
             self.ui.status_label.configure(text="Error al guardar captura", text_color="red")
