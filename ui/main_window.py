@@ -18,7 +18,7 @@ class MainWindow(ctk.CTk):
         # --- PANEL LATERAL (SIDEBAR) ---
         self.sidebar_frame = ctk.CTkFrame(self, width=250, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(5, weight=1)
+        self.sidebar_frame.grid_rowconfigure(6, weight=1)
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="ECOSORT AI", font=ctk.CTkFont(size=28, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 5))
@@ -47,8 +47,20 @@ class MainWindow(ctk.CTk):
         )
         self.btn_toggle_camera.grid(row=4, column=0, padx=20, pady=10)
 
+        self.btn_capture_image = ctk.CTkButton(
+            self.sidebar_frame,
+            text="CAPTURAR IMAGEN",
+            command=self._on_capture_image,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            height=40,
+            fg_color="#1f538d",
+            hover_color="#14375e",
+            state="disabled"
+        )
+        self.btn_capture_image.grid(row=5, column=0, padx=20, pady=10)
+
         self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Estado: Sistema Listo", text_color="gray")
-        self.status_label.grid(row=6, column=0, padx=20, pady=20, sticky="s")
+        self.status_label.grid(row=7, column=0, padx=20, pady=20, sticky="s")
 
         # --- ÁREA PRINCIPAL (VIDEO Y RESULTADOS) ---
         self.main_frame = ctk.CTkFrame(self, corner_radius=15)
@@ -74,6 +86,7 @@ class MainWindow(ctk.CTk):
         # --- CALLBACKS ---
         self.on_model_change_callback = None
         self.on_toggle_camera_callback = None
+        self.on_capture_image_callback = None
 
         # Diccionario de colores para los materiales
         self.color_map = {
@@ -92,6 +105,10 @@ class MainWindow(ctk.CTk):
     def _on_toggle_camera(self):
         if self.on_toggle_camera_callback:
             self.on_toggle_camera_callback()
+
+    def _on_capture_image(self):
+        if self.on_capture_image_callback:
+            self.on_capture_image_callback()
 
     def update_video_frame(self, pil_image):
         ctk_img = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(640, 480))
@@ -112,5 +129,7 @@ class MainWindow(ctk.CTk):
     def set_camera_button_state(self, is_running):
         if is_running:
             self.btn_toggle_camera.configure(text="DETENER CÁMARA", fg_color="#8B0000", hover_color="#5a0000")
+            self.btn_capture_image.configure(state="normal")
         else:
             self.btn_toggle_camera.configure(text="INICIAR CÁMARA", fg_color=config.UI_COLOR, hover_color="#1E6E43")
+            self.btn_capture_image.configure(state="disabled")

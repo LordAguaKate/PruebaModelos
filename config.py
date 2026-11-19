@@ -6,9 +6,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "Models"
 LOGS_DIR = BASE_DIR / "logs"
+FIGURE_DIR = BASE_DIR / "figure"
 
-# Crear la carpeta de logs automáticamente si no existe
+# Crear las carpetas de logs y capturas automáticamente si no existen
 LOGS_DIR.mkdir(exist_ok=True)
+FIGURE_DIR.mkdir(exist_ok=True)
 
 # --- CONFIGURACIÓN DE LOGGING ---
 LOG_FILE = LOGS_DIR / "ecosort_app.log"

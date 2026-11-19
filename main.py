@@ -1,5 +1,6 @@
 import cv2
 import time
+from datetime import datetime
 from PIL import Image
 import config
 from config import logger
@@ -19,12 +20,15 @@ class EcoSortApp:
 
         self.ui.on_model_change_callback = self.change_model
         self.ui.on_toggle_camera_callback = self.toggle_camera
+        self.ui.on_capture_image_callback = self.capture_image
         self.ui.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Variables para Métricas HUD
+        # Variables para Métricas HUD y Captura
         self.current_model_name = ""
         self.prev_frame_time = time.time()
         self.fps_smoothed = 0.0
+        self.current_pil_image = None
+        self.last_predicted_class = "ninguno"
 
         default_model_name = list(config.AVAILABLE_MODELS.keys())[0]
         self.change_model(default_model_name)
@@ -50,9 +54,31 @@ class EcoSortApp:
                 self.process_video_stream()
         else:
             self.camera.stop()
+            self.current_pil_image = None
             self.ui.set_camera_button_state(is_running=False)
             self.ui.status_label.configure(text="Cámara detenida", text_color="gray")
             self.ui.video_label.configure(image="", text="Cámara Detenida")
+
+    def capture_image(self):
+        """Guarda el fotograma actual en la carpeta figure/."""
+        if not self.camera.is_running or self.current_pil_image is None:
+            logger.warning("Intento de captura sin fotograma activo.")
+            self.ui.status_label.configure(text="Inicia la cámara para capturar", text_color="orange")
+            return
+
+        try:
+            config.FIGURE_DIR.mkdir(exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+            clean_class = self.last_predicted_class.replace(".", "").strip() or "sin_clase"
+            filename = f"captura_{timestamp}_{self.current_model_name}_{clean_class}.png"
+            filepath = config.FIGURE_DIR / filename
+
+            self.current_pil_image.save(filepath)
+            logger.info(f"Imagen capturada y guardada en: {filepath}")
+            self.ui.status_label.configure(text=f"Guardada: {filename}", text_color="#00BFFF")
+        except Exception as e:
+            logger.error(f"Error al guardar la captura: {e}")
+            self.ui.status_label.configure(text="Error al guardar captura", text_color="red")
 
     def draw_hud(self, frame, fps, latency):
         """Dibuja métricas de rendimiento (HUD) sobre el fotograma con OpenCV."""
@@ -95,6 +121,8 @@ class EcoSortApp:
                 
                 # Visión: Pasamos el frame dibujado a PIL para la UI
                 pil_img = Image.fromarray(frame_with_hud)
+                self.current_pil_image = pil_img
+                self.last_predicted_class = predicted_class
                 
                 # Actualizar la Interfaz Gráfica
                 self.ui.update_video_frame(pil_img)
