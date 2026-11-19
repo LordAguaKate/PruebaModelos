@@ -18,6 +18,7 @@ class InferenceEngine:
         self.output_details = None
         self.input_shape = config.INPUT_SIZE
         self.is_loaded = False
+        self.last_raw_class = None
 
     def load_model(self, model_path):
         """
@@ -115,6 +116,7 @@ class InferenceEngine:
         
         # Mapear el índice al nombre de la clase (aluminio, carton, etc.)
         predicted_class = config.CLASSES[max_idx]
+        self.last_raw_class = predicted_class
         
         # Calcular latencia en milisegundos
         inference_time_ms = (end_time - start_time) * 1000
