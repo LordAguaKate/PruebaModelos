@@ -65,23 +65,36 @@ class InferenceEngine:
         Acondiciona el fotograma RGB de la cámara para que coincida 
         exactamente con lo que espera el modelo.
         """
-        # 1. El frame ya viene en RGB puro, solo redimensionamos al tamaño del modelo
-        img_resized = cv2.resize(frame, self.input_shape)
-        
-        # 2. Convertir a un arreglo numpy tipo float32
-        input_data = np.float32(img_resized)
-        
-        # NOTA CRÍTICA: NO dividimos entre 255.0 aquí porque el modelo 
-        # MobileNetV3 de Keras ya integra su propia capa de Rescaling.
-        
-        # Adaptación automática para modelos como YOLO (Channel-First)
+        target_h, target_w = self.input_shape
+
+        # Adaptación automática para modelos como YOLO (Channel-First / Ultralytics)
         if getattr(self, 'is_channel_first', False):
-            # Cambiar de (Alto, Ancho, Canales) a (Canales, Alto, Ancho)
+            # Preprocesamiento nativo de Ultralytics (classify_transforms):
+            # 1. Redimensionar el lado más corto a target_h conservando proporción (bilineal)
+            h, w = frame.shape[:2]
+            scale = min(target_h, target_w) / min(h, w)
+            new_w, new_h = max(target_w, round(w * scale)), max(target_h, round(h * scale))
+            img_scaled = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+            # 2. Recorte central de (target_h, target_w)
+            top = (new_h - target_h) // 2
+            left = (new_w - target_w) // 2
+            img_cropped = img_scaled[top:top + target_h, left:left + target_w]
+
+            # 3. Normalizar píxeles a rango [0.0, 1.0] y transponer de HWC a CHW
+            input_data = np.float32(img_cropped) / 255.0
             input_data = np.transpose(input_data, (2, 0, 1))
-            
-        # 3. Añadir la dimensión del batch
-        input_data = np.expand_dims(input_data, axis=0)
-        
+        else:
+            # Modelos de Keras (MobileNet, EfficientNet, ShuffleNet, SqueezeNet):
+            # 1. Redimensionar directo al tamaño de entrada
+            img_resized = cv2.resize(frame, (target_w, target_h))
+
+            # 2. Convertir a float32 en rango [0.0, 255.0] (integran su propia capa de Rescaling/Normalization)
+            input_data = np.float32(img_resized)
+
+        # Añadir la dimensión del batch y asegurar memoria contigua
+        input_data = np.ascontiguousarray(np.expand_dims(input_data, axis=0))
+
         return input_data
 
     def predict(self, frame):
