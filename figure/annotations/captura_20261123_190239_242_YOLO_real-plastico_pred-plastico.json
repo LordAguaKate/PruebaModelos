@@ -1,0 +1,137 @@
+{
+  "timestamp": "2026-11-23T19:02:39.242729",
+  "imagen": {
+    "archivo": "captura_20261123_190239_242_YOLO_real-plastico_pred-plastico.png",
+    "ruta_relativa": "figure/captura_20261123_190239_242_YOLO_real-plastico_pred-plastico.png",
+    "resolucion": {
+      "ancho": 640,
+      "alto": 480,
+      "formato": "640x480"
+    }
+  },
+  "hud_rendimiento": {
+    "fps": 18.71,
+    "fps_hud": 18,
+    "latencia_ia_ms": 25.549,
+    "red_neuronal": "YOLO"
+  },
+  "modelo": {
+    "nombre": "YOLO",
+    "input_shape": [
+      224,
+      224
+    ],
+    "channel_first": true,
+    "umbral_confianza": 0.85
+  },
+  "prediccion_captura": {
+    "clase_real": "plastico",
+    "clase_predicha": "plastico",
+    "estado_ui": "plastico",
+    "acierto": true,
+    "confianza": 0.9978,
+    "confianza_porcentaje": 99.78,
+    "evaluacion_tiempo_real_activa": true
+  },
+  "metricas_evaluacion": {
+    "clase_real_activa": {
+      "clase": "plastico",
+      "precision": 0.684,
+      "recall": 1.0,
+      "f1-score": 0.8124,
+      "support": 697
+    },
+    "por_clase": {
+      "aluminio": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 322
+      },
+      "carton": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0
+      },
+      "otros": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0
+      },
+      "plastico": {
+        "precision": 0.684,
+        "recall": 1.0,
+        "f1-score": 0.8124,
+        "support": 697
+      },
+      "vidrio": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0
+      }
+    },
+    "accuracy": 0.684,
+    "macro_avg": {
+      "precision": 0.342,
+      "recall": 0.5,
+      "f1-score": 0.4062,
+      "support": 1019
+    },
+    "weighted_avg": {
+      "precision": 0.4679,
+      "recall": 0.684,
+      "f1-score": 0.5557,
+      "support": 1019
+    },
+    "total_support": 1019,
+    "matriz_confusion": {
+      "clases": [
+        "aluminio",
+        "carton",
+        "otros",
+        "plastico",
+        "vidrio"
+      ],
+      "matriz": [
+        [
+          0,
+          0,
+          0,
+          322,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          697,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  }
+}
