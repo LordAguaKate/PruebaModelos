@@ -44,11 +44,11 @@ class InferenceEngine:
             # Detectar si el modelo es Channel-First (ej. YOLO) o Channel-Last (ej. MobileNet)
             if len(shape) == 4 and shape[1] == 3:
                 # Formato NCHW [Batch, Canales, Alto, Ancho] -> Típico en YOLO
-                self.input_shape = (shape[2], shape[3])
+                self.input_shape = (int(shape[2]), int(shape[3]))
                 self.is_channel_first = True
             else:
                 # Formato NHWC [Batch, Alto, Ancho, Canales] -> Típico en Keras/MobileNet
-                self.input_shape = (shape[1], shape[2]) 
+                self.input_shape = (int(shape[1]), int(shape[2]))
                 self.is_channel_first = False
             
             self.is_loaded = True

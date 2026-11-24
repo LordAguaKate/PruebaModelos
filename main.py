@@ -194,6 +194,19 @@ class EcoSortApp:
             self.ui.status_label.configure(text="Cámara detenida", text_color="gray")
             self.ui.video_label.configure(image="", text="Cámara Detenida")
 
+    @staticmethod
+    def _json_default(obj):
+        """Convierte escalares o arreglos de NumPy a tipos nativos de Python para serialización JSON segura."""
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
     def build_capture_annotation(self, image_filename, capture_dt, metrics):
         """Construye el diccionario JSON con toda la información del HUD y evaluación de la imagen capturada."""
         w, h = self.current_pil_image.size if self.current_pil_image is not None else (640, 480)
@@ -203,9 +216,9 @@ class EcoSortApp:
         for cls_name in config.CLASSES:
             m = metrics["per_class"][cls_name]
             por_clase_json[cls_name] = {
-                "precision": round(m["precision"], 4),
-                "recall": round(m["recall"], 4),
-                "f1-score": round(m["f1"], 4),
+                "precision": round(float(m["precision"]), 4),
+                "recall": round(float(m["recall"]), 4),
+                "f1-score": round(float(m["f1"]), 4),
                 "support": int(m["support"]),
             }
 
@@ -218,9 +231,9 @@ class EcoSortApp:
                 "archivo": image_filename,
                 "ruta_relativa": f"figure/{image_filename}",
                 "resolucion": {
-                    "ancho": w,
-                    "alto": h,
-                    "formato": f"{w}x{h}",
+                    "ancho": int(w),
+                    "alto": int(h),
+                    "formato": f"{int(w)}x{int(h)}",
                 },
             },
             "hud_rendimiento": {
@@ -231,9 +244,9 @@ class EcoSortApp:
             },
             "modelo": {
                 "nombre": self.current_model_name,
-                "input_shape": list(self.engine.input_shape),
+                "input_shape": [int(x) for x in self.engine.input_shape],
                 "channel_first": bool(getattr(self.engine, "is_channel_first", False)),
-                "umbral_confianza": config.CONFIDENCE_THRESHOLD,
+                "umbral_confianza": float(config.CONFIDENCE_THRESHOLD),
             },
             "prediccion_captura": {
                 "clase_real": self.current_true_class,
@@ -242,7 +255,7 @@ class EcoSortApp:
                 "acierto": bool(raw_pred == self.current_true_class),
                 "confianza": round(float(self.last_confidence), 4),
                 "confianza_porcentaje": round(float(self.last_confidence) * 100.0, 2),
-                "evaluacion_tiempo_real_activa": self.ui.is_realtime_eval_enabled(),
+                "evaluacion_tiempo_real_activa": bool(self.ui.is_realtime_eval_enabled()),
             },
             "metricas_evaluacion": {
                 "clase_real_activa": {
@@ -265,8 +278,8 @@ class EcoSortApp:
                 },
                 "total_support": int(metrics["total_support"]),
                 "matriz_confusion": {
-                    "clases": config.CLASSES,
-                    "matriz": self._get_current_cm().tolist(),
+                    "clases": list(config.CLASSES),
+                    "matriz": [[int(val) for val in row] for row in self._get_current_cm().tolist()],
                 },
             },
         }
@@ -313,8 +326,8 @@ class EcoSortApp:
             json_filename = f"{base_name}.json"
             json_filepath = config.ANNOTATIONS_DIR / json_filename
             annotation_data = self.build_capture_annotation(image_filename, capture_dt, metrics)
-            with open(json_filepath, "w", encoding="utf-8") as f:
-                json.dump(annotation_data, f, indent=2, ensure_ascii=False)
+            json_text = json.dumps(annotation_data, indent=2, ensure_ascii=False, default=self._json_default)
+            json_filepath.write_text(json_text + "\n", encoding="utf-8")
 
             report_str = self.format_classification_report(metrics)
             logger.info(
