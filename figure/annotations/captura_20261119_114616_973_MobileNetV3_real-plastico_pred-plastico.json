@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-11-19T11:46:16.973878",
+  "imagen": {
+    "archivo": "captura_20261119_114616_973_MobileNetV3_real-plastico_pred-plastico.png",
+    "ruta_relativa": "figure/captura_20261119_114616_973_MobileNetV3_real-plastico_pred-plastico.png",
+    "resolucion": {
+      "ancho": 640,
+      "alto": 480,
+      "formato": "640x480"
+    }
+  },
+  "hud_rendimiento": {
+    "fps": 20.48,
+    "fps_hud": 20,
+    "latencia_ia_ms": 17.036,
+    "red_neuronal": "MobileNetV3"
+  },
+  "modelo": {
+    "nombre": "MobileNetV3",
+    "input_shape": [
+      
